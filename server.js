@@ -45,7 +45,7 @@ app.use(bodyParser.urlencoded({
 }));
 
 
-app.use(routes);
+app.use('/api',routes);
 
 app.listen(3000, function(){
     console.log("Imani, your app is running on localhost:3000")

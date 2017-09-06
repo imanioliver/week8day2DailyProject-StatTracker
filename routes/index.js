@@ -10,9 +10,17 @@ router.get("/", passport.authenticate('basic', {session: false}), function(req, 
     res.send("StatTracker Home!")
 })
 // GET	/activities	Show a list of all activities I am tracking, and links to their individual pages
-router.get('/api/activities', passport.authenticate('basic', {session: false}), function(req, res){
+router.get('/activities', passport.authenticate('basic', {session: false}), function(req, res){
 
-    Activity.findAll({})
+    Activity.findAll({
+
+        include: [
+            {
+                model: Stat,
+                as: "stats"
+            }
+        ]
+    })
     .then(function(data){
         res.send(data);
     })
@@ -20,7 +28,7 @@ router.get('/api/activities', passport.authenticate('basic', {session: false}), 
 
 // POST	/activities	Create a new activity for me to track.
 
-router.post("/api/activities", function(req, res){
+router.post("/activities", function(req, res){
 
     Activity.create({
         name: req.body.name,
@@ -33,7 +41,7 @@ router.post("/api/activities", function(req, res){
 
 
 // GET	/activities/{id}	Show information about one activity I am tracking, and give me the data I have recorded for that activity.
-router.get('/api/activities/:id', function(req, res){
+router.get('/activities/:id', function(req, res){
     let activityId = req.params.id;
 
     Activity.findById(activityId)
@@ -45,28 +53,98 @@ router.get('/api/activities/:id', function(req, res){
 
 // PUT	/activities/{id}	Update one activity I am tracking, changing attributes such as name or type. Does not allow for changing tracked data.
 
-router.put('/api/activities/:id', function(req, res){
-let activityId = req.params.id;
+router.put('/activities/:id', function(req, res){
+    let activityId = req.params.id;
 
-    Activity.update({
-        name: req.body.name,
-        unit: req.body.unit
-    },{
-        where: {
-            id: activityId
-        }
-    })
-    .then(function(data){
-        res.send(data)
-    })
+        Activity.update({
+            name: req.body.name,
+            unit: req.body.unit
+        },{
+            where: {
+                id: activityId
+            }
+        })
+        .then(function(data){
+            res.send(data)
+        })
 });
 
 
 // DELETE	/activities/{id}	Delete one activity I am tracking. This should remove tracked data for that activity as well.
 
+router.delete("/activities/:id", function(req,res){
+    let activityId = req.params.id
+
+    Stat.destroy({
+        where: {
+            activityId: activityId
+        }
+    })
+    .then(statDestroy=>{
+        Activity.destroy({
+            where: {
+                id: activityId
+            }
+        })
+        .then(function(data){
+            console.log("this is the data that I am logging", data);
+            res.json(" activity has been destroyed")
+        })
+        .catch(function(activityErr){
+            res.json(activityErr)
+        })
+    })
+    .catch(err=>{
+        res.json(err)
+    })
+
+    // Activity.destroy({
+    //     where: {
+    //         id: activityId
+    //     }
+    // })
+    // .then(function(data){
+    //     console.log("this is the data that I am logging", data);
+    //     res.json(data, " activity has been destroyed")
+    // })
+    // .catch(function(activityErr){
+    //     res.send(activityErr)
+    // })
+
+    //this will be inside a destroy for all the stats where activityId: activityId, .then this^ then the stats should have a .catch(function(statErr){res.send("Stat Error", statErr)})
+});
+
+
 // POST	/activities/{id}/stats	Add tracked data for a day. The data sent with this should include the day tracked. You can also override the data for a day already recorded.
 
+router.post("/activities/:id/stats", function(req, res){
+    let activityId = req.params.id;
+
+    Stat.create({
+        activityId: activityId,
+        measurement: req.body.measurement
+    })
+    .then(data=>{
+        res.send(data)
+    })
+});
+
 // DELETE	/stats/{id}	Remove tracked data for a day.
+
+router.delete("/stats/:id", function(req, res){
+
+    let statId = req.params.id;
+
+    Stat.destroy({
+        where: {
+            id: statId
+        }
+    })
+    .then(data=>{
+        res.json(data)
+    })
+
+})
 
 
 
@@ -75,7 +153,7 @@ module.exports = router;
 // *   Trying ::1...
 // * Connected to localhost (::1) port 3000 (#0)
 // * Server auth using Basic with user 'imani'
-// > GET /api/auth HTTP/1.1
+// > GET /auth HTTP/1.1
 // > Host: localhost:3000
 // > Authorization: Basic aW1hbmk6cGFzc3dvcmQ=
 // > User-Agent: curl/7.49.1
